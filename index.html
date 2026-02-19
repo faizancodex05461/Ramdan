@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ramzan Smart Dashboard</title>
+
+<link rel="manifest" href="manifest.json">
+
+<style>
+body{
+background:#0d1117;
+color:white;
+font-family:Arial;
+text-align:center;
+margin:0;
+padding:10px;
+}
+
+.card{
+background:#161b22;
+padding:15px;
+margin:10px;
+border-radius:10px;
+box-shadow:0 0 10px rgba(0,255,150,0.2);
+}
+
+button{
+padding:10px 15px;
+border:none;
+border-radius:8px;
+background:#00ff95;
+color:black;
+font-weight:bold;
+margin:5px;
+cursor:pointer;
+}
+
+input{
+padding:8px;
+border-radius:6px;
+border:none;
+margin:5px;
+}
+</style>
+</head>
+
+<body>
+
+<h2>🌙 Ramzan Smart Dashboard</h2>
+
+<div class="card">
+<h3>📍 Location</h3>
+<p id="location">Detecting...</p>
+<button onclick="getLocation()">Refresh Location</button>
+</div>
+
+<div class="card">
+<h3>🕌 Prayer Timings (Sunni MWL)</h3>
+<p>Fajr (Sehri End): <span id="fajr"></span></p>
+<p>Maghrib (Iftar): <span id="maghrib"></span></p>
+<p>Next Countdown: <span id="countdown"></span></p>
+</div>
+
+<div class="card">
+<h3>📿 Tasbeeh Counter</h3>
+<h1 id="counter">0</h1>
+<button onclick="increment()">+</button>
+<button onclick="resetCounter()">Reset</button>
+</div>
+
+<div class="card">
+<h3>📅 Roza Tracker</h3>
+<button onclick="markRoza()">Mark Today Roza</button>
+<p>Total Roza: <span id="rozaCount">0</span></p>
+</div>
+
+<div class="card">
+<h3>💰 Zakat Calculator</h3>
+<input type="number" id="wealth" placeholder="Enter total wealth">
+<button onclick="calculateZakat()">Calculate</button>
+<p id="zakatResult"></p>
+</div>
+
+<div class="card">
+<h3>📖 Daily Ayah</h3>
+<p id="ayah">Loading...</p>
+</div>
+
+<script>
+let lat, lon;
+
+function getLocation(){
+if(navigator.geolocation){
+navigator.geolocation.getCurrentPosition(pos=>{
+lat = pos.coords.latitude;
+lon = pos.coords.longitude;
+document.getElementById("location").innerText =
+"Lat: "+lat.toFixed(2)+" | Lon: "+lon.toFixed(2);
+fetchPrayer();
+});
+}
+}
+
+function fetchPrayer(){
+fetch(`https://api.aladhan.com/v1/timings?latitude=${lat}&longitude=${lon}&method=3`)
+.then(res=>res.json())
+.then(data=>{
+let timings = data.data.timings;
+document.getElementById("fajr").innerText = timings.Fajr;
+document.getElementById("maghrib").innerText = timings.Maghrib;
+startCountdown(timings.Fajr, timings.Maghrib);
+});
+}
+
+function startCountdown(fajr, maghrib){
+setInterval(()=>{
+let now = new Date();
+let fajrTime = new Date();
+let maghribTime = new Date();
+
+let [fh,fm] = fajr.split(":");
+let [mh,mm] = maghrib.split(":");
+
+fajrTime.setHours(fh,fm,0);
+maghribTime.setHours(mh,mm,0);
+
+let diff;
+if(now < fajrTime){
+diff = fajrTime - now;
+}else{
+diff = maghribTime - now;
+}
+
+let hrs = Math.floor(diff/1000/60/60);
+let mins = Math.floor((diff/1000/60)%60);
+let secs = Math.floor((diff/1000)%60);
+
+document.getElementById("countdown").innerText =
+hrs+"h "+mins+"m "+secs+"s";
+},1000);
+}
+
+let count = localStorage.getItem("tasbeeh") || 0;
+document.getElementById("counter").innerText = count;
+
+function increment(){
+count++;
+localStorage.setItem("tasbeeh",count);
+document.getElementById("counter").innerText = count;
+}
+
+function resetCounter(){
+count=0;
+localStorage.setItem("tasbeeh",count);
+document.getElementById("counter").innerText = count;
+}
+
+let roza = localStorage.getItem("roza") || 0;
+document.getElementById("rozaCount").innerText = roza;
+
+function markRoza(){
+roza++;
+localStorage.setItem("roza",roza);
+document.getElementById("rozaCount").innerText = roza;
+}
+
+function calculateZakat(){
+let wealth = document.getElementById("wealth").value;
+let zakat = wealth * 0.025;
+document.getElementById("zakatResult").innerText =
+"Zakat Due: ₹"+zakat.toFixed(2);
+}
+
+fetch("https://api.aladhan.com/v1/ayah/random")
+.then(res=>res.json())
+.then(data=>{
+document.getElementById("ayah").innerText =
+data.data.text + " ("+data.data.surah.englishName+")";
+});
+
+getLocation();
+</script>
+
+</body>
+  </html>
